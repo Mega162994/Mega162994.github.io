@@ -7,27 +7,20 @@
 <body>
   <h1>Zaynu</h1>
 
-  <button id="pickBtn">
-    Pick My Partner
-  </button>
-
-  <p id="status"></p>
+  <button id="pickBtn">Pick My Partner</button>
 
   <script type="module">
     import "./firebase.js";
 
     const btn = document.getElementById("pickBtn");
-    const status = document.getElementById("status");
 
     btn.addEventListener("click", async () => {
-      status.textContent = "Picking...";
       try {
         await window.pickPartner("Zaynu");
-        status.textContent = "Done. Check alert.";
-        btn.disabled = true;
+        btn.disabled = true; // Prevent double-click
       } catch (e) {
-        status.textContent = "Error. Check console.";
         console.error(e);
+        alert("Error. Check console.");
       }
     });
   </script>
