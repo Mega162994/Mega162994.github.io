@@ -1,3 +1,4 @@
+// Import Firebase modules
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
   getFirestore,
@@ -7,6 +8,7 @@ import {
   getDocs
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
+// Your Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyD0mnZTMTDNEIdYbM1mzYQ7PNOCTFwralQ",
   authDomain: "christamas-b7061.firebaseapp.com",
@@ -16,25 +18,31 @@ const firebaseConfig = {
   appId: "1:964436369056:web:770e0cec4ced39c491f3c5"
 };
 
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-window.pickPartner = async function (myName) {
+// The main pickPartner function
+window.pickPartner = async function(myName) {
   const myRef = doc(db, "people", myName);
 
   await runTransaction(db, async (transaction) => {
     const mySnap = await transaction.get(myRef);
 
+    // If picker already clicked
     if (mySnap.data().locked) {
       alert("Already picked.");
       return;
     }
 
+    // Build a list of available partners
     const snap = await getDocs(collection(db, "people"));
     const available = [];
 
     snap.forEach((d) => {
-      if (!d.data().locked && d.id !== myName) {
+      const data = d.data();
+      // Exclude picker and anyone already locked
+      if (!data.locked && d.id !== myName) {
         available.push(d.id);
       }
     });
@@ -44,18 +52,12 @@ window.pickPartner = async function (myName) {
       return;
     }
 
-    const partner =
-      available[Math.floor(Math.random() * available.length)];
+    // Pick a random partner from available
+    const partner = available[Math.floor(Math.random() * available.length)];
 
-    const partnerRef = doc(db, "people", partner);
-
+    // Lock only the picker and set their pairedWith
     transaction.update(myRef, {
       pairedWith: partner,
-      locked: true
-    });
-
-    transaction.update(partnerRef, {
-      pairedWith: myName,
       locked: true
     });
 
