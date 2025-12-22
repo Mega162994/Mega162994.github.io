@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Zaynu</title>
+</head>
+<body>
+  <h1>Zaynu</h1>
+
+  <button id="pickBtn">
+    Pick My Partner
+  </button>
+
+  <p id="status"></p>
+
+  <script type="module">
+    import "./firebase.js";
+
+    const btn = document.getElementById("pickBtn");
+    const status = document.getElementById("status");
+
+    btn.addEventListener("click", async () => {
+      status.textContent = "Picking...";
+      try {
+        await window.pickPartner("Zaynu");
+        status.textContent = "Done. Check alert.";
+        btn.disabled = true;
+      } catch (e) {
+        status.textContent = "Error. Check console.";
+        console.error(e);
+      }
+    });
+  </script>
+</body>
+</html>
