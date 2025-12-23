@@ -18,41 +18,33 @@ const db = getFirestore(app);
 
 // Function to pick a partner
 window.pickPartner = async function(myName) {
-  const myRef = doc(db, "people", myName);
+  const snap = await getDocs(collection(db, "people"));
+  const available = [];
 
-  await runTransaction(db, async (transaction) => {
-    const mySnap = await transaction.get(myRef);
-
-    // Stop if picker already clicked
-    if (mySnap.data().locked) {
-      alert("Already picked.");
-      return;
+  snap.forEach(d => {
+    const data = d.data();
+    // Exclude self and anyone already locked
+    if (!data.locked && d.id !== myName) {
+      available.push(d.id);
     }
-
-    // Build available partner list
-    const snap = await getDocs(collection(db, "people"));
-    const available = [];
-    snap.forEach(d => {
-      const data = d.data();
-      if (!data.locked && d.id !== myName) {
-        available.push(d.id);
-      }
-    });
-
-    if (available.length === 0) {
-      alert("No partners left.");
-      return;
-    }
-
-    // Pick random partner
-    const partner = available[Math.floor(Math.random() * available.length)];
-
-    // LOCK ONLY THE PICKER
-    transaction.update(myRef, {
-      pairedWith: partner,
-      locked: true
-    });
-
-    alert(`You are paired with ${partner}`);
   });
+
+  if (available.length === 0) {
+    alert("No partners left.");
+    return;
+  }
+
+  // Pick random partner
+  const partnerName = available[Math.floor(Math.random() * available.length)];
+  const partnerRef = doc(db, "people", partnerName);
+
+  // Lock the partner, not the picker
+  await runTransaction(db, async (transaction) => {
+    transaction.update(partnerRef, {
+      locked: true,
+      pairedWith: myName
+    });
+  });
+
+  alert(`You picked ${partnerName} as your partner!`);
 };
