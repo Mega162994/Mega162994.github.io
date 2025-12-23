@@ -1,16 +1,26 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, doc, runTransaction, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-const firebaseConfig = { /* your config */ };
+// Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyD0mnZTMTDNEIdYbM1mzYQ7PNOCTFwralQ",
+  authDomain: "christamas-b7061.firebaseapp.com",
+  projectId: "christamas-b7061",
+  storageBucket: "christamas-b7061.firebasestorage.app",
+  messagingSenderId: "964436369056",
+  appId: "1:964436369056:web:770e0cec4ced39c491f3c5"
+};
+
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 window.pickPartner = async function(myName) {
   try {
-    // 1️⃣ Read all people outside transaction
+    // 1️⃣ Read all people OUTSIDE transaction
     const peopleSnap = await getDocs(collection(db, "people"));
-    const available = [];
+
     let meRef, meData;
+    const available = [];
 
     peopleSnap.forEach(docSnap => {
       const data = docSnap.data();
@@ -30,7 +40,7 @@ window.pickPartner = async function(myName) {
     const chosenPartner = available[Math.floor(Math.random() * available.length)];
     const partnerRef = doc(db, "people", chosenPartner);
 
-    // 3️⃣ Transaction only locks partner and updates picker
+    // 3️⃣ Transaction for locking partner and marking picker
     await runTransaction(db, async (transaction) => {
       const partnerSnap = await transaction.get(partnerRef);
       if (!partnerSnap.exists() || partnerSnap.data().locked === true) {
