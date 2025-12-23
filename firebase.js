@@ -1,50 +1,65 @@
-// Import Firebase modules
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, doc, runTransaction, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+window.pickPartner = async function (myName) {
+  const peopleCol = collection(db, "people");
 
-// Firebase config
-const firebaseConfig = {
-  apiKey: "AIzaSyD0mnZTMTDNEIdYbM1mzYQ7PNOCTFwralQ",
-  authDomain: "christamas-b7061.firebaseapp.com",
-  projectId: "christamas-b7061",
-  storageBucket: "christamas-b7061.firebasestorage.app",
-  messagingSenderId: "964436369056",
-  appId: "1:964436369056:web:770e0cec4ced39c491f3c5"
-};
+  try {
+    let chosenPartner = null;
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+    await runTransaction(db, async (transaction) => {
+      const myRef = doc(db, "people", myName);
+      const mySnap = await transaction.get(myRef);
 
-// Function to pick a partner
-window.pickPartner = async function(myName) {
-  const snap = await getDocs(collection(db, "people"));
-  const available = [];
+      if (!mySnap.exists()) {
+        throw new Error("User does not exist");
+      }
 
-  snap.forEach(d => {
-    const data = d.data();
-    // Exclude self and anyone already locked
-    if (!data.locked && d.id !== myName) {
-      available.push(d.id);
-    }
-  });
+      if (mySnap.data().family === 1) {
+        throw new Error("You already picked");
+      }
 
-  if (available.length === 0) {
-    alert("No partners left.");
-    return;
-  }
+      // 🔒 READ ALL PEOPLE THROUGH TRANSACTION
+      const peopleSnap = await transaction.get(peopleCol);
 
-  // Pick random partner
-  const partnerName = available[Math.floor(Math.random() * available.length)];
-  const partnerRef = doc(db, "people", partnerName);
+      const available = [];
 
-  // Lock the partner, not the picker
-  await runTransaction(db, async (transaction) => {
-    transaction.update(partnerRef, {
-      locked: true,
-      pairedWith: myName
+      peopleSnap.forEach(docSnap => {
+        const data = docSnap.data();
+        if (
+          docSnap.id !== myName &&
+          data.locked === false
+        ) {
+          available.push(docSnap.id);
+        }
+      });
+
+      if (available.length === 0) {
+        throw new Error("No partners left");
+      }
+
+      // 🎯 RANDOM PICK
+      chosenPartner =
+        available[Math.floor(Math.random() * available.length)];
+
+      const partnerRef = doc(db, "people", chosenPartner);
+      const partnerSnap = await transaction.get(partnerRef);
+
+      if (partnerSnap.data().locked === true) {
+        throw new Error("Partner already locked, retry");
+      }
+
+      // ✅ COMMIT
+      transaction.update(myRef, {
+        family: 1,
+        pairedWith: chosenPartner
+      });
+
+      transaction.update(partnerRef, {
+        locked: true
+      });
     });
-  });
 
-  alert(`You picked ${partnerName} as your partner!`);
+    alert(`You got ${chosenPartner}`);
+
+  } catch (err) {
+    alert(err.message);
+  }
 };
