@@ -40,9 +40,10 @@ window.pickPartner = async function(myName) {
     const chosenPartner = available[Math.floor(Math.random() * available.length)];
     const partnerRef = doc(db, "people", chosenPartner);
 
-    // 3️⃣ Transaction for locking partner and marking picker
+    // 3️⃣ Transaction: update picker and lock partner
     await runTransaction(db, async (transaction) => {
       const partnerSnap = await transaction.get(partnerRef);
+
       if (!partnerSnap.exists() || partnerSnap.data().locked === true) {
         throw new Error("Partner already locked, retry");
       }
