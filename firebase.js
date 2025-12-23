@@ -2,11 +2,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 import {
   getFirestore,
   doc,
-  runTransaction,
-  collection
+  runTransaction
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-// 🔥 Firebase config
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyD0mnZTMTDNEIdYbM1mzYQ7PNOCTFwralQ",
   authDomain: "christamas-b7061.firebaseapp.com",
@@ -16,70 +15,49 @@ const firebaseConfig = {
   appId: "1:964436369056:web:770e0cec4ced39c491f3c5"
 };
 
-// Init
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// 🎁 PICK PARTNER FUNCTION
-window.pickPartner = async function (myName) {
+// List of all people IDs in Firestore
+const peopleList = ["Rinshad","Zaynu","Kaizu","Zaru","Chinju",
+                    "Prashant","Lakshmi","Tanu","Mayu",
+                    "Ashik","Sumi","Ramin","Isha",
+                    "Chandu","Bagavath","Unii","Priya"];
+
+window.pickPartner = async function(myName) {
   try {
     let chosenPartner = null;
 
     await runTransaction(db, async (transaction) => {
-      const peopleCol = collection(db, "people");
-
-      // 🔒 Read ALL people inside transaction
-      const peopleSnap = await transaction.get(peopleCol);
-
-      const myRef = doc(db, "people", myName);
-      const mySnap = await transaction.get(myRef);
-
-      if (!mySnap.exists()) {
-        throw new Error("User does not exist");
+      // 1️⃣ Load all people individually inside transaction
+      const allPeople = [];
+      for (const id of peopleList) {
+        const ref = doc(db, "people", id);
+        const snap = await transaction.get(ref);
+        if (!snap.exists()) throw new Error(`Person ${id} does not exist`);
+        allPeople.push({ id, ref, data: snap.data() });
       }
 
-      // ❌ Already picked
-      if (mySnap.data().family === 1) {
-        throw new Error("You already picked");
-      }
+      // 2️⃣ Get picker
+      const me = allPeople.find(p => p.id === myName);
+      if (me.data.family === 1) throw new Error("You already picked");
 
-      // 🎯 Build available pool
-      const available = [];
+      // 3️⃣ Build available partners
+      const available = allPeople.filter(p => p.id !== myName && p.data.locked === false);
 
-      peopleSnap.forEach(docSnap => {
-        const data = docSnap.data();
+      if (available.length === 0) throw new Error("No partners left");
 
-        if (
-          docSnap.id !== myName &&     // ❌ no self-pick
-          data.locked === false        // ❌ can't pick locked
-        ) {
-          available.push(docSnap.id);
-        }
-      });
+      // 4️⃣ Random pick
+      const partnerObj = available[Math.floor(Math.random() * available.length)];
+      chosenPartner = partnerObj.id;
 
-      if (available.length === 0) {
-        throw new Error("No partners left");
-      }
-
-      // 🎲 Random pick
-      chosenPartner =
-        available[Math.floor(Math.random() * available.length)];
-
-      const partnerRef = doc(db, "people", chosenPartner);
-      const partnerSnap = await transaction.get(partnerRef);
-
-      // 🔁 Final safety check
-      if (!partnerSnap.exists() || partnerSnap.data().locked === true) {
-        throw new Error("Partner already taken, retry");
-      }
-
-      // ✅ COMMIT CHANGES
-      transaction.update(myRef, {
+      // 5️⃣ Commit changes
+      transaction.update(me.ref, {
         family: 1,
         pairedWith: chosenPartner
       });
 
-      transaction.update(partnerRef, {
+      transaction.update(partnerObj.ref, {
         locked: true
       });
     });
@@ -87,7 +65,7 @@ window.pickPartner = async function (myName) {
     alert(`🎁 You are paired with ${chosenPartner}`);
 
   } catch (err) {
-    alert(err.message);
     console.error(err);
+    alert("Error: " + err.message);
   }
 };
